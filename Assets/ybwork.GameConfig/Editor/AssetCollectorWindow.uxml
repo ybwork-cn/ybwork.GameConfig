@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <uie:Toolbar name="Toolbar" style="display: flex; flex-direction: row-reverse; height: 30px; border-bottom-width: 0;">
+        <ui:Button text="Build" display-tooltip-when-elided="true" name="BuildButton" style="width: auto; background-color: rgb(56, 147, 58);" />
+        <ui:Button text="Save" display-tooltip-when-elided="true" name="SaveButton" style="width: auto; background-color: rgb(56, 147, 58);" />
+        <ui:Button text="Refresh" display-tooltip-when-elided="true" name="RefreshButton" style="width: auto; background-color: rgb(56, 147, 58);" />
+        <ui:EnumField type="UnityEditor.BuildTarget, UnityEditor.CoreModule" name="BuildTarget" value="StandaloneWindows" />
+        <ui:Button text="..." parse-escape-sequences="true" display-tooltip-when-elided="true" name="OutputPathSelector" style="padding-top: 6px; padding-right: 6px; padding-bottom: 6px; padding-left: 6px; margin-left: 0; margin-right: 4px; margin-top: 4px; margin-bottom: 4px; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px;" />
+        <ui:TextField name="OutputPath" style="margin-right: 2px; margin-left: 2px; color: rgb(255, 255, 255); font-size: 12px; -unity-text-align: middle-left; margin-top: 5px; margin-bottom: 5px; flex-grow: 1; overflow: visible; flex-shrink: 1;" />
+        <ui:Label tabindex="-1" text="导出位置:" parse-escape-sequences="true" display-tooltip-when-elided="true" style="margin-bottom: 0; margin-left: 8px; padding-right: 0; padding-left: 0; margin-right: 0; justify-content: center; -unity-text-align: middle-left; padding-top: 0; padding-bottom: 0; margin-top: 0;" />
+    </uie:Toolbar>
+    <ui:VisualElement name="ContentContainer" style="flex-grow: 1; flex-direction: row; align-self: center;">
+        <ui:VisualElement name="PackageContainer" style="width: 200px; flex-grow: 0; background-color: rgb(67, 67, 67); border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px;">
+            <ui:Label text="Packages" display-tooltip-when-elided="true" name="PackageTitle" style="background-color: rgb(89, 89, 89); -unity-text-align: upper-center; -unity-font-style: bold; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; font-size: 12px;" />
+            <ui:ListView focusable="true" name="PackageListView" show-border="true" show-add-remove-footer="true" style="flex-grow: 1; margin-top: 5px; margin-right: 0; margin-left: 0; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px;" />
+        </ui:VisualElement>
+        <ui:VisualElement name="GroupContainer" style="width: 200px; flex-grow: 0; background-color: rgb(67, 67, 67); border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px;">
+            <ui:Label text="Groups" display-tooltip-when-elided="true" name="GroupTitle" style="background-color: rgb(89, 89, 89); -unity-text-align: upper-center; -unity-font-style: bold; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; font-size: 12px;" />
+            <ui:TextField picking-mode="Ignore" label="PackageName" max-length="-1" multiline="false" name="PackageName" style="flex-direction: column; margin-right: 0; margin-left: 0; margin-bottom: 0; margin-top: 0;" />
+            <ui:ListView focusable="true" name="GroupListView" show-border="true" show-add-remove-footer="true" style="flex-grow: 1; margin-top: 5px; margin-left: 0; margin-right: 0; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px;" />
+        </ui:VisualElement>
+        <ui:VisualElement name="CollectorContainer" style="flex-grow: 1; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; background-color: rgb(67, 67, 67);">
+            <ui:Label text="Collectors" display-tooltip-when-elided="true" name="CollectorTitle" style="background-color: rgb(89, 89, 89); -unity-text-align: upper-center; -unity-font-style: bold; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; font-size: 12px;" />
+            <ui:TextField picking-mode="Ignore" label="GroupName" max-length="-1" multiline="false" name="GroupName" style="flex-direction: column; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;" />
+            <ui:ScrollView name="CollectorScrollView" style="flex-grow: 1; flex-basis: auto; background-color: rgba(0, 0, 0, 0.1); margin-top: 5px; margin-right: 0; margin-left: 0; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; margin-bottom: 5px;" />
+            <ui:IMGUIContainer name="DraggableArea" style="height: 100px;">
+                <ui:Label tabindex="-1" text="拖拽到此处" parse-escape-sequences="true" display-tooltip-when-elided="true" style="-unity-text-align: middle-center; height: 100%; background-color: rgba(144, 144, 144, 0.31); left: 0; top: 0; right: 0; bottom: 0; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px;" />
+            </ui:IMGUIContainer>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
