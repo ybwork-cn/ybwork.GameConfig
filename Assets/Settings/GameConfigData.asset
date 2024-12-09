@@ -15,9 +15,16 @@ MonoBehaviour:
   Packages:
   - PackageName: DefaultPackage
     Tables:
-    - TableName: AAA
-      TableType: 0
+    - TableName: sdfs
+      TableType: 1
       Define: {fileID: 11500000, guid: e994692108f264d41b445dffdeef887b, type: 3}
       Array:
-      - 123
+      - asddad
+      - asddad
       Map: []
+    - TableName: DefaultTable
+      TableType: 0
+      Define: {fileID: 0}
+      Array: []
+      Map: []
+  TargetPath: 

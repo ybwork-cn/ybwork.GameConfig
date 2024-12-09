@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -42,6 +42,7 @@ namespace ybwork.GameConfig.Editor
     public class GameConfigData : ScriptableObject
     {
         public List<GameConfigPackageData> Packages = new();
+        public string TargetPath;
 
         public static GameConfigData GetData()
         {
@@ -60,7 +61,7 @@ namespace ybwork.GameConfig.Editor
             }
             else
             {
-                string message = "´æÔÚ¶à¸ö" + nameof(GameConfigData) + "£¬ÒÑ×Ô¶¯Ñ¡È¡µÚÒ»¸ö at";
+                string message = "å­˜åœ¨å¤šä¸ª" + nameof(GameConfigData) + "ï¼Œå·²è‡ªåŠ¨é€‰å–ç¬¬ä¸€ä¸ª at";
                 foreach (var guid in guids)
                 {
                     message += "\r\n\t" + AssetDatabase.GUIDToAssetPath(guid);

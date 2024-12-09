@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
+using TreeEditor;
 using UnityEditor;
 using UnityEditor.VersionControl;
 using UnityEngine;
@@ -35,14 +36,15 @@ namespace ybwork.GameConfig.Editor
         private void Awake()
         {
             _data = GameConfigData.GetData();
-            Type type = _data.Packages[0].Tables[0].Define.GetClass();
-            var members = type.GetMembers()
-                .Where(member => member.MemberType is MemberTypes.Property or MemberTypes.Field);
-            foreach (var item in members)
-            {
-                Debug.Log(item.Name);
-            }
         }
+
+        ListView _packageListView;
+        ListView _tableListView;
+        ListView _tableContentListView;
+        TextField _packageName;
+        TextField _tableName;
+        EnumField _tableType;
+        ObjectField _typeBindElement;
 
         private void CreateGUI()
         {
@@ -57,107 +59,132 @@ namespace ybwork.GameConfig.Editor
                 .First();
             treeAsset.CloneTree(root);
 
-            ListView packageListView = root.Q<ListView>("PackageListView");
-            ListView tableListView = root.Q<ListView>("TableListView");
-            ScrollView valueScrollView = root.Q<ScrollView>("ValueScrollView");
+            _packageListView = root.Q<ListView>("PackageListView");
+            _tableListView = root.Q<ListView>("TableListView");
+            _tableContentListView = root.Q<ListView>("TableContentListView");
 
-            TextField packageName = root.Q<TextField>("PackageName");
-            packageName.SetEnabled(false);
-            packageName.RegisterValueChangedCallback(evt =>
+            _packageName = root.Q<TextField>("PackageName");
+            _packageName.SetEnabled(false);
+            _packageName.RegisterValueChangedCallback(evt =>
             {
-                GameConfigPackageData package = _data.Packages[packageListView.selectedIndex];
+                GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
                 package.PackageName = evt.newValue;
-                packageListView.RefreshItem(packageListView.selectedIndex);
+                _packageListView.RefreshItem(_packageListView.selectedIndex);
             });
 
-            TextField groupName = root.Q<TextField>("TableName");
-            groupName.SetEnabled(false);
-            groupName.RegisterValueChangedCallback(evt =>
+            _tableName = root.Q<TextField>("TableName");
+            _tableName.SetEnabled(false);
+            _tableName.RegisterValueChangedCallback(evt =>
             {
-                GameConfigPackageData package = _data.Packages[packageListView.selectedIndex];
-                GameConfigTableData table = package.Tables[tableListView.selectedIndex];
+                GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
+                GameConfigTableData table = package.Tables[_tableListView.selectedIndex];
                 table.TableName = evt.newValue;
 
-                //RefreshCollectorList(collectorScrollView, table);
-                //tableListView.RefreshItem(tableListView.selectedIndex);
+                RefreshTableContent();
+                _tableListView.RefreshItem(_tableListView.selectedIndex);
             });
 
-            packageListView.makeItem = MakeListViewItem;
-            packageListView.bindItem = (element, index) =>
+            _tableType = root.Q<EnumField>("TableType");
+            _tableType.RegisterValueChangedCallback(evt =>
+            {
+                GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
+                GameConfigTableData table = package.Tables[_tableListView.selectedIndex];
+                table.TableType = (TableType)evt.newValue;
+                RefreshTableContent();
+            });
+            _tableType.SetEnabled(false);
+
+            _typeBindElement = new ObjectField("Define");
+            _typeBindElement.objectType = typeof(MonoScript);
+            _typeBindElement.style.marginLeft = 0;
+            _typeBindElement.RegisterValueChangedCallback(evt =>
+            {
+                GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
+                GameConfigTableData table = package.Tables[_tableListView.selectedIndex];
+                table.Define = (MonoScript)evt.newValue;
+                RefreshTableContent();
+            });
+            _typeBindElement.SetEnabled(false);
+            _tableContentListView.parent.Insert(3, _typeBindElement);
+
+            _packageListView.makeItem = MakeListViewItem;
+            _packageListView.bindItem = (element, index) =>
             {
                 Label label = element.Q<Label>("Label1");
                 label.text = _data.Packages[index].PackageName;
             };
-            packageListView.itemsAdded += (itemIndices) =>
+            _packageListView.itemsAdded += (itemIndices) =>
             {
                 foreach (int index in itemIndices)
                     _data.Packages[index] = new GameConfigPackageData { PackageName = "DefaultPackage" };
-                packageListView.SetSelection(_data.Packages.Count - 1);
+                _packageListView.SetSelection(_data.Packages.Count - 1);
             };
-            packageListView.itemsRemoved += (itemIndices) =>
+            _packageListView.itemsRemoved += (itemIndices) =>
             {
-                packageName.SetEnabled(false);
-                packageName.SetValueWithoutNotify("");
-                packageListView.SetSelection(-1);
+                _packageListView.SetSelection(-1);
+                _tableListView.Rebuild();
+                _tableContentListView.Rebuild();
             };
-            packageListView.selectedIndicesChanged += (IEnumerable<int> indices) =>
+            _packageListView.selectedIndicesChanged += (IEnumerable<int> indices) =>
             {
-                packageName.SetEnabled(false);
-                packageName.SetValueWithoutNotify("");
-                tableListView.ClearSelection();
+                _packageName.SetEnabled(false);
+                _packageName.SetValueWithoutNotify("");
 
-                if (packageListView.selectedIndex < 0)
+                if (_packageListView.selectedIndex < 0)
                     return;
 
-                packageName.SetEnabled(true);
-                GameConfigPackageData package = _data.Packages[packageListView.selectedIndex];
-                packageName.SetValueWithoutNotify(package.PackageName);
+                GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
+                _packageName.SetEnabled(true);
+                _packageName.SetValueWithoutNotify(package.PackageName);
 
-                ResetListViewDataSource(tableListView, package.Tables);
+                ResetListViewDataSource(_tableListView, package.Tables);
             };
 
-            tableListView.makeItem = MakeListViewItem;
-            tableListView.bindItem = (element, index) =>
+            _tableListView.makeItem = MakeListViewItem;
+            _tableListView.bindItem = (element, index) =>
             {
+                if (_packageListView.selectedIndex < 0)
+                    return;
                 Label label = element.Q<Label>("Label1");
-                label.text = _data.Packages[packageListView.selectedIndex].Tables[index].TableName;
+                label.text = _data.Packages[_packageListView.selectedIndex].Tables[index].TableName;
             };
-            tableListView.itemsAdded += (itemIndices) =>
+            _tableListView.itemsAdded += (itemIndices) =>
             {
-                GameConfigPackageData package = _data.Packages[packageListView.selectedIndex];
+                GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
                 foreach (int index in itemIndices)
                     package.Tables[index] = new GameConfigTableData { TableName = "DefaultTable" };
-                tableListView.SetSelection(package.Tables.Count - 1);
+                _tableListView.SetSelection(package.Tables.Count - 1);
             };
-            tableListView.itemsRemoved += (itemIndices) =>
+            _tableListView.itemsRemoved += (itemIndices) =>
             {
-                groupName.SetEnabled(false);
-                groupName.SetValueWithoutNotify("");
-                tableListView.SetSelection(-1);
+                _tableListView.SetSelection(-1);
+                RefreshTableContent();
             };
-            tableListView.selectedIndicesChanged += (IEnumerable<int> indices) =>
+            _tableListView.selectedIndicesChanged += (IEnumerable<int> indices) =>
             {
-                groupName.SetEnabled(false);
-                groupName.SetValueWithoutNotify("");
-                valueScrollView.Clear();
-
-                GameConfigPackageData package = _data.Packages[packageListView.selectedIndex];
-                GameConfigTableData table = null;
-                if (package != null && tableListView.selectedIndex >= 0 && tableListView.selectedIndex < package.Tables.Count)
-                    table = package.Tables[tableListView.selectedIndex];
-                if (table == null)
-                    return;
-
-                groupName.SetEnabled(true);
-                groupName.SetValueWithoutNotify(table.TableName);
-                //RefreshCollectorList(valueScrollView, table);
+                RefreshTableContent();
             };
+
+            _tableContentListView.makeItem = () =>
+            {
+                return new MyObjectField(_tableContentListView);
+            };
+            _tableContentListView.bindItem = (ve, index) => ((MyObjectField)ve).Bind(index);
+            _tableContentListView.itemsAdded += (ids) =>
+            {
+                var data = _tableContentListView.itemsSource;
+                foreach (var item in ids)
+                {
+                    data[item] = new TestData();
+                }
+            };
+            _tableContentListView.SetEnabled(false);
 
             TextField outputPathTextField = root.Query<TextField>("OutputPath");
-            //outputPathTextField.value = _data.TargetPath;
+            outputPathTextField.value = _data.TargetPath;
             outputPathTextField.RegisterValueChangedCallback(value =>
             {
-                //_data.TargetPath = value.newValue;
+                _data.TargetPath = value.newValue;
             });
 
             Button outputPathSelectorButton = root.Query<Button>("OutputPathSelector");
@@ -175,8 +202,21 @@ namespace ybwork.GameConfig.Editor
                     name = "";
                 }
                 path = EditorUtility.OpenFolderPanel("选择输出路径", path, name);
-                //_data.TargetPath = path;
+                _data.TargetPath = path;
                 outputPathTextField.value = path;
+            };
+
+            // 刷新按钮
+            Button refreshButton = root.Query<Button>("RefreshButton");
+            refreshButton.clicked += () =>
+            {
+                ResetListViewDataSource(_packageListView, _data.Packages);
+                GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
+                ResetListViewDataSource(_tableListView, package.Tables);
+                GameConfigTableData table = package.Tables[_tableListView.selectedIndex];
+                _tableName.SetValueWithoutNotify(table.TableName);
+                _tableType.SetValueWithoutNotify(table.TableType);
+                RefreshTableContent();
             };
 
             // 保存按钮
@@ -187,7 +227,7 @@ namespace ybwork.GameConfig.Editor
             Button buildButton = root.Query<Button>("BuildButton");
             //buildButton.clicked += Build;
 
-            ResetListViewDataSource(packageListView, _data.Packages);
+            ResetListViewDataSource(_packageListView, _data.Packages);
         }
 
         private void OnGUI()
@@ -206,7 +246,7 @@ namespace ybwork.GameConfig.Editor
 
         private void SaveData()
         {
-            //EditorUtility.SetDirty(_data);
+            EditorUtility.SetDirty(_data);
             AssetDatabase.SaveAssets();
 
             Debug.Log("GameConfig保存成功");
@@ -225,20 +265,45 @@ namespace ybwork.GameConfig.Editor
             RebuildListView(listView);
         }
 
-        //private static void RefreshCollectorList(ScrollView collectorScrollView, AssetCollectorGroupData groupData)
-        //{
-        //    collectorScrollView.Clear();
+        private void RefreshTableContent()
+        {
+            _tableName.SetEnabled(false);
+            _tableName.SetValueWithoutNotify("");
+            _typeBindElement.SetEnabled(false);
+            _typeBindElement.SetValueWithoutNotify(null);
 
-        //    foreach (AssetCollectorItemData item in groupData.Items)
-        //    {
-        //        VisualElement element = MakeCollectorListViewItem(groupData, item, onDelete: () =>
-        //        {
-        //            groupData.Items.Remove(item);
-        //            RefreshCollectorList(collectorScrollView, groupData);
-        //        });
-        //        collectorScrollView.Add(element);
-        //    }
-        //}
+            _tableContentListView.itemsSource = null;
+            _tableContentListView.Rebuild();
+            _tableContentListView.SetEnabled(false);
+
+            if (_packageListView.selectedIndex < 0)
+                return;
+            if (_tableListView.selectedIndex < 0)
+                return;
+            GameConfigPackageData package = _data.Packages[_packageListView.selectedIndex];
+            GameConfigTableData table = package.Tables[_tableListView.selectedIndex];
+
+            _tableName.SetEnabled(true);
+            _tableName.SetValueWithoutNotify(table.TableName);
+            _typeBindElement.SetEnabled(true);
+            _typeBindElement.SetValueWithoutNotify(table.Define);
+
+            if (table.Define != null)
+            {
+                Type type = table.Define.GetClass();
+                IList datas = (IList)typeof(List<>)
+                    .MakeGenericType(new Type[] { type })
+                    .GetConstructor(new Type[] { })
+                    .Invoke(new object[] { });
+                foreach (var data in table.Array)
+                {
+                    datas.Add(JsonConvert.DeserializeObject(data, type));
+                }
+                _tableContentListView.itemsSource = datas;
+                _tableContentListView.Rebuild();
+                _tableContentListView.SetEnabled(true);
+            }
+        }
 
         private VisualElement MakeListViewItem()
         {
@@ -256,172 +321,5 @@ namespace ybwork.GameConfig.Editor
 
             return element;
         }
-
-        //private static AssetCollectorItemData CreateCollectorItemData(Object obj)
-        //{
-        //    string assetPath = AssetDatabase.GetAssetPath(obj);
-
-        //    AssetCollectorItemData collectorItemData = new AssetCollectorItemData();
-        //    collectorItemData.AssetGUID = AssetDatabase.AssetPathToGUID(assetPath);
-        //    return collectorItemData;
-        //}
-
-        //private static VisualElement MakeCollectorListViewItem(
-        //    AssetCollectorGroupData groupData,
-        //    AssetCollectorItemData collectorItemData,
-        //    Action onDelete)
-        //{
-        //    VisualElement element = new VisualElement();
-
-        //    VisualElement elementTop = new VisualElement();
-        //    elementTop.style.flexDirection = FlexDirection.Row;
-        //    element.Add(elementTop);
-
-        //    VisualElement elementSettings = new VisualElement();
-        //    elementSettings.style.flexDirection = FlexDirection.Row;
-        //    elementSettings.style.height = 20;
-        //    elementSettings.style.alignItems = Align.Center;
-        //    element.Add(elementSettings);
-
-        //    VisualElement elementFoldout = new VisualElement();
-        //    elementFoldout.style.flexDirection = FlexDirection.Row;
-        //    element.Add(elementFoldout);
-
-        //    VisualElement elementSpace = new VisualElement();
-        //    elementSpace.style.flexDirection = FlexDirection.Column;
-        //    element.Add(elementSpace);
-
-        //    // Top VisualElement
-        //    {
-        //        Button button = new Button();
-        //        button.name = "Delete";
-        //        button.text = "-";
-        //        button.style.width = 20;
-        //        button.style.unityTextAlign = TextAnchor.MiddleCenter;
-        //        button.clicked += onDelete;
-        //        elementTop.Add(button);
-        //    }
-        //    {
-        //        VisualElement objectRow = new VisualElement();
-        //        objectRow.style.flexDirection = FlexDirection.Row;
-        //        objectRow.style.flexGrow = 1f;
-
-        //        Label label = new Label();
-        //        label.style.width = 65;
-        //        label.style.unityTextAlign = TextAnchor.MiddleLeft;
-        //        objectRow.Add(label);
-
-        //        ObjectField objectField = new ObjectField();
-        //        objectField.name = "ObjectField1";
-        //        objectField.objectType = typeof(Object);
-        //        objectField.allowSceneObjects = false;
-        //        objectField.style.unityTextAlign = TextAnchor.MiddleLeft;
-        //        objectField.style.flexGrow = 1f;
-        //        objectField.value = AssetDatabase.LoadAssetAtPath<Object>(collectorItemData.AssetPath);
-        //        RefreshAssetLabel(label, collectorItemData, objectField.value);
-        //        objectField.RegisterValueChangedCallback(evt =>
-        //        {
-        //            // register "ValuChangedEvent" to the objectField
-        //            // When responding, refresh the "Main Assets" Foldout
-        //            collectorItemData.AssetPath = AssetDatabase.GetAssetPath(evt.newValue);
-
-        //            Foldout foldout = elementFoldout.Q<Foldout>("Foldout1");
-        //            RefreshAssetLabel(label, collectorItemData, objectField.value);
-        //            RefreshAssetList(groupData, collectorItemData, foldout);
-        //        });
-        //        objectRow.Add(objectField);
-        //        elementTop.Add(objectRow);
-        //    }
-
-        //    // Settings VisualElement
-        //    {
-        //        var label = new Label();
-        //        label.style.width = 93;
-        //        elementSettings.Add(label);
-        //    }
-        //    {
-        //        var label = new Label("寻址方式:");
-        //        elementSettings.Add(label);
-        //    }
-        //    {
-        //        List<string> list = new List<string> { "文件名", "分组名_文件名" };
-        //        var dropdown = new DropdownField(list, 0);
-        //        dropdown.style.width = 100;
-        //        dropdown.index = (int)collectorItemData.AssetStyle;
-        //        dropdown.RegisterValueChangedCallback(evt =>
-        //        {
-        //            collectorItemData.AssetStyle = (AssetCollectorItemStyle)list.IndexOf(evt.newValue);
-
-        //            Foldout foldout = elementFoldout.Q<Foldout>("Foldout1");
-        //            RefreshAssetList(groupData, collectorItemData, foldout);
-        //        });
-        //        elementSettings.Add(dropdown);
-        //    }
-
-        //    // Foldout VisualElement
-        //    {
-        //        var label = new Label();
-        //        label.style.width = 90;
-        //        elementFoldout.Add(label);
-        //    }
-        //    {
-        //        Foldout foldout = new Foldout();
-        //        foldout.name = "Foldout1";
-        //        foldout.value = false;
-        //        foldout.text = "Main Assets";
-        //        elementFoldout.Add(foldout);
-
-        //        RefreshAssetList(groupData, collectorItemData, foldout);
-        //    }
-
-        //    // Space VisualElement
-        //    {
-        //        var label = new Label();
-        //        label.style.height = 10;
-        //        elementSpace.Add(label);
-        //    }
-
-        //    return element;
-        //}
-
-        //private static void RefreshAssetList(
-        //    AssetCollectorGroupData groupData,
-        //    AssetCollectorItemData collectorItemData,
-        //    Foldout foldout)
-        //{
-        //    foldout.Clear();
-        //    foreach (AssetAlias assetAlias in collectorItemData.GetAssets(groupData.GroupName))
-        //    {
-        //        VisualElement elementItem = new VisualElement();
-        //        elementItem.style.flexDirection = FlexDirection.Row;
-
-        //        Image image = new Image();
-        //        image.image = AssetDatabase.GetCachedIcon(assetAlias.AssetPath);
-        //        image.style.alignSelf = Align.Center;
-        //        image.uv = new Rect(0, 0, 1, 1);
-        //        image.style.width = 16;
-        //        image.style.height = 16;
-        //        elementItem.Add(image);
-
-        //        TextField textField = new TextField();
-        //        textField.value = assetAlias.Name;
-        //        textField.textEdition.isReadOnly = true;
-        //        textField.style.width = 200;
-        //        textField.style.minWidth = 200;
-        //        textField.style.maxWidth = 200;
-        //        if (collectorItemData.GetRepeatedAssets().Contains(assetAlias.Name))
-        //        {
-        //            textField.Children().Last().Children().First().style.color = Color.yellow;
-        //        }
-        //        elementItem.Add(textField);
-
-        //        Label label = new Label();
-        //        label.text = assetAlias.AssetPath;
-        //        label.style.unityTextAlign = TextAnchor.MiddleLeft;
-        //        elementItem.Add(label);
-
-        //        foldout.Add(elementItem);
-        //    }
-        //}
     }
 }
